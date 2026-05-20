@@ -38,18 +38,22 @@ class ToolDefinitionWrapper:
         self._definition = definition
     
     def model_dump(self, **kwargs) -> Dict[str, Any]:
+        import json
         func = self._definition.get("function", {})
-        params = func.get("parameters")
-        return {
+        params = func.get("parameters") or {}
+        clean_params = {k: v for k, v in params.items() if v is not None}
+        result = {
             "Name": func.get("name", ""),
             "Description": func.get("description", ""),
             "Type": self._definition.get("type", "function"),
             "Function": {
                 "Name": func.get("name", ""),
                 "Description": func.get("description", ""),
-                "Parameters": params if params is not None else {}
+                "Parameters": clean_params
             }
         }
+        print(f"[TOOL DEBUG] model_dump: {json.dumps(result)}")
+        return result
 
 
 class SkillAgentParams(BaseModel):
@@ -357,10 +361,13 @@ Always explain your reasoning and provide clear, actionable responses."""
                 
                 # Debug: log what we're passing
                 if params.debug_mode:
+                    import json
+                    tool_defs_dump = [td.model_dump() for td in tool_defs] if tool_defs else []
                     yield self.create_text_message(
                         f"🔍 LLM invoke debug:\n"
                         f"  model keys: {list(params.model.keys()) if isinstance(params.model, dict) else 'not a dict'}\n"
                         f"  tools count: {len(tool_defs) if tool_defs else 0}\n"
+                        f"  tool_defs: {json.dumps(tool_defs_dump, indent=2) if tool_defs else 'none'}\n"
                     )
                 
                 llm_response = self.session.model.llm.invoke(
