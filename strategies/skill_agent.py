@@ -32,22 +32,10 @@ from dify_plugin.interfaces.agent import AgentModelConfig, AgentStrategy, ToolEn
 from skills import SkillRegistry
 
 
-class ToolDefinitionWrapper:
-    """Wrapper for tool definition dicts to provide model_dump() method."""
-    def __init__(self, definition: Dict[str, Any]):
-        self._definition = definition
-        self.parameters = definition.get("Function", {}).get("Parameters", {})
-    
-    def model_dump(self, **kwargs) -> Dict[str, Any]:
-        import sys
-        print(f"[TOOL WRAPPER] model_dump called, returning: {self._definition}", flush=True)
-        return self._definition
-
-
 class SkillAgentParams(BaseModel):
     """Parameters for the skill-based agent strategy."""
-    model: Dict[str, Any]
-    tools: Optional[List[Any]] = None
+    model: AgentModelConfig
+    tools: list[ToolEntity] | None
     query: str
     enabled_skills: str = "all"
     custom_skills: str = ""
@@ -295,16 +283,10 @@ Always explain your reasoning and provide clear, actionable responses."""
             UserPromptMessage(content=params.query)
         ]
         
-        # Build tool instances map
-        tool_instances = {}
-        if params.tools:
-            for tool in params.tools:
-                name = self._get_tool_name(tool)
-                if name:
-                    tool_instances[name] = tool
-        
-        # Build tool definitions for LLM
-        tool_defs = self._build_tool_definitions(params.tools)
+        # Convert tools using _init_prompt_tools (from base AgentStrategy)
+        tools = params.tools
+        tool_instances = {tool.identity.name: tool for tool in tools} if tools else {}
+        prompt_messages_tools = self._init_prompt_tools(tools)
         
         # Main agent loop
         iteration = 0
@@ -322,8 +304,8 @@ Always explain your reasoning and provide clear, actionable responses."""
             yield iteration_log
             
             # Invoke LLM
-            model_name = params.model.get("model", "unknown")
-            model_provider = params.model.get("provider", "unknown")
+            model_name = params.model.model
+            model_provider = params.model.provider
             model_log = self.create_log_message(
                 label=f"{model_name} Thinking",
                 data={},
@@ -341,16 +323,15 @@ Always explain your reasoning and provide clear, actionable responses."""
                 response_text = ""
                 tool_calls = []
                 
-                # Debug: dump what we're passing
-                if params.debug_mode:
-                    import json
-                    dump = []
-                    for td in tool_defs:
-                        d = td.model_dump()
-                        dump.append(d)
-                    yield self.create_text_message(
-                        f"🔍 Passing to LLM:\n{json.dumps(dump, indent=2)}\n"
-                    )
+                # Create model config using model_dump
+                model_config = LLMModelConfig(**params.model.model_dump(mode="json"))
+                
+                llm_response = self.session.model.llm.invoke(
+                    model_config=model_config,
+                    prompt_messages=messages,
+                    tools=prompt_messages_tools,
+                    stream=True
+                )
                 
                 llm_response = self.session.model.llm.invoke(
                     model_config=params.model,
