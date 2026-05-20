@@ -34,8 +34,8 @@ from skills import SkillRegistry
 
 class SkillAgentParams(BaseModel):
     """Parameters for the skill-based agent strategy."""
-    model: AgentModelConfig
-    tools: Optional[List[ToolEntity]] = None
+    model: Dict[str, Any]
+    tools: Optional[List[Any]] = None
     query: str
     enabled_skills: str = "all"
     custom_skills: str = ""
@@ -314,20 +314,19 @@ Always explain your reasoning and provide clear, actionable responses."""
             yield iteration_log
             
             # Invoke LLM
+            model_name = params.model.get("model", "unknown")
+            model_provider = params.model.get("provider", "unknown")
             model_log = self.create_log_message(
-                label=f"{params.model.model} Thinking",
+                label=f"{model_name} Thinking",
                 data={},
                 metadata={
-                    "provider": params.model.provider,
+                    "provider": model_provider,
                     "started_at": time.perf_counter()
                 },
                 status=ToolInvokeMessage.LogMessage.LogStatus.START,
                 parent=iteration_log
             )
             yield model_log
-            
-            # params.model is already an AgentModelConfig (extends LLMModelConfig)
-            # so we can pass it directly to the invoke method
             
             # Call LLM
             try:
