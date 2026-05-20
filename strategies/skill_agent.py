@@ -38,7 +38,17 @@ class ToolDefinitionWrapper:
         self._definition = definition
     
     def model_dump(self, **kwargs) -> Dict[str, Any]:
-        return self._definition
+        func = self._definition.get("function", {})
+        return {
+            "Name": func.get("name", ""),
+            "Description": func.get("description", ""),
+            "Type": self._definition.get("type", "function"),
+            "Function": {
+                "Name": func.get("name", ""),
+                "Description": func.get("description", ""),
+                "Parameters": func.get("parameters", {})
+            }
+        }
 
 
 class SkillAgentParams(BaseModel):
