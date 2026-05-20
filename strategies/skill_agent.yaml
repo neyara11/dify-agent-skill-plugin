@@ -8,7 +8,8 @@ identity:
 description:
   en_US: An intelligent agent that uses multiple skills to handle user queries
   zh_Hans: 使用多种技能处理用户查询的智能代理
-
+features:
+  - history-messages
 parameters:
   - name: model
     type: model-selector
