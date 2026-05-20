@@ -428,7 +428,7 @@ Always explain your reasoning and provide clear, actionable responses."""
                         tool_name_from_instance = self._get_tool_name(tool_instance)
                         runtime_params = tool_instance.get("runtime_parameters", {}) if isinstance(tool_instance, dict) else getattr(tool_instance, 'runtime_parameters', None) or {}
                         for result in self.session.tool.invoke(
-                            provider_type=ToolProviderType.BUILT_IN,
+                            provider_type=ToolProviderType(tool_instance.provider_type),
                             provider=provider,
                             tool_name=tool_name_from_instance,
                             parameters={
