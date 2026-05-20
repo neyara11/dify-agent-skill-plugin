@@ -10,6 +10,7 @@ system to provide intelligent, context-aware responses. The agent:
 4. Manages the conversation loop with iteration limits
 """
 
+import json
 import os
 import time
 from typing import Any, Dict, Generator, List, Optional, Tuple
@@ -421,9 +422,20 @@ Always explain your reasoning and provide clear, actionable responses."""
                     break
                 
                 # Add assistant message with tool calls
+                tool_call_objects = [
+                    AssistantPromptMessage.ToolCall(
+                        id=tc_id,
+                        type="function",
+                        function=AssistantPromptMessage.ToolCall.ToolCallFunction(
+                            name=tc_name,
+                            arguments=json.dumps(tc_args, ensure_ascii=False)
+                        )
+                    )
+                    for tc_id, tc_name, tc_args in tool_calls
+                ]
                 messages.append(AssistantPromptMessage(
                     content=response_text,
-                    tool_calls=tool_calls
+                    tool_calls=tool_call_objects
                 ))
                 
                 # Execute tool calls
