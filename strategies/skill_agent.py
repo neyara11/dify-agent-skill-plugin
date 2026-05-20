@@ -277,6 +277,15 @@ Always explain your reasoning and provide clear, actionable responses."""
         
         system_prompt = "".join(system_parts)
         
+        # Debug: show system prompt and model info
+        if params.debug_mode:
+            yield self.create_text_message(
+                f"🔍 System prompt:\n{system_prompt[:500]}...\n\n"
+                f"🔍 Model type: {type(params.model)}, has model_dump: {hasattr(params.model, 'model_dump')}\n"
+                f"🔍 Tools type: {type(params.tools)}, len: {len(params.tools) if params.tools else 0}\n"
+                f"🔍 prompt_messages_tools type: {type(prompt_messages_tools)}, len: {len(prompt_messages_tools) if prompt_messages_tools else 0}\n"
+            )
+        
         # Initialize conversation
         messages: List[PromptMessage] = [
             SystemPromptMessage(content=system_prompt),
