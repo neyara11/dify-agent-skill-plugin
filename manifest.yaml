@@ -1,4 +1,4 @@
-version: 1.1.0
+version: 1.2.0
 type: plugin
 author: xun404
 name: agent-skill-plugin
@@ -29,7 +29,7 @@ resource:
       enabled: true
       size: 1048576
 meta:
-  version: 1.1.0
+  version: 1.2.0
   arch:
     - amd64
     - arm64
