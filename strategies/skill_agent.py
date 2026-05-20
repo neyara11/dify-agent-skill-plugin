@@ -366,9 +366,9 @@ Always explain your reasoning and provide clear, actionable responses."""
                                     response_text += delta_content
                                     yield self.create_text_message(delta_content)
                             
-                            # Check for tool calls
-                            if hasattr(chunk.delta, 'tool_calls'):
-                                tool_calls = self._extract_tool_calls(chunk.delta)
+                        # Check for tool calls (only if not empty)
+                        if hasattr(chunk.delta, 'tool_calls') and chunk.delta.tool_calls:
+                            tool_calls = self._extract_tool_calls(chunk.delta)
                 except Exception as e:
                     import traceback
                     yield self.create_text_message(f"🔍 Error iterating llm_response: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}\n")
