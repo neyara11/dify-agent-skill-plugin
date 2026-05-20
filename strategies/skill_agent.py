@@ -32,6 +32,15 @@ from dify_plugin.interfaces.agent import AgentModelConfig, AgentStrategy, ToolEn
 from skills import SkillRegistry
 
 
+class ToolDefinitionWrapper:
+    """Wrapper for tool definition dicts to provide model_dump() method."""
+    def __init__(self, definition: Dict[str, Any]):
+        self._definition = definition
+    
+    def model_dump(self, **kwargs) -> Dict[str, Any]:
+        return self._definition
+
+
 class SkillAgentParams(BaseModel):
     """Parameters for the skill-based agent strategy."""
     model: Dict[str, Any]
@@ -142,7 +151,7 @@ Always explain your reasoning and provide clear, actionable responses."""
     def _build_tool_definitions(
         self,
         tools: Optional[List[ToolEntity]]
-    ) -> List[Dict[str, Any]]:
+    ) -> List[Any]:
         """
         Build tool definitions for the LLM.
         
@@ -150,7 +159,7 @@ Always explain your reasoning and provide clear, actionable responses."""
             tools: List of tool entities or dicts
             
         Returns:
-            List of tool definition dicts for the LLM
+            List of tool definition wrappers for the LLM
         """
         if not tools:
             return []
@@ -169,7 +178,7 @@ Always explain your reasoning and provide clear, actionable responses."""
                     "parameters": self._get_tool_parameters(tool)
                 }
             }
-            definitions.append(definition)
+            definitions.append(ToolDefinitionWrapper(definition))
         
         return definitions
     
