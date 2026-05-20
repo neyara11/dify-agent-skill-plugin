@@ -367,8 +367,8 @@ Always explain your reasoning and provide clear, actionable responses."""
                                     yield self.create_text_message(delta_content)
                             
                         # Check for tool calls (only if not empty)
-                        if hasattr(chunk.delta, 'tool_calls') and chunk.delta.tool_calls:
-                            extracted = self._extract_tool_calls(chunk.delta)
+                        if hasattr(chunk.delta, 'message') and hasattr(chunk.delta.message, 'tool_calls') and chunk.delta.message.tool_calls:
+                            extracted = self._extract_tool_calls(chunk)
                             if extracted:
                                 tool_calls.extend(extracted)
                 except Exception as e:
