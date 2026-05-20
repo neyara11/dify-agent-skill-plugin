@@ -296,11 +296,11 @@ Always explain your reasoning and provide clear, actionable responses."""
         tool_instances = {tool.identity.name: tool for tool in tools} if tools else {}
         prompt_messages_tools = self._init_prompt_tools(tools)
         
-        # Initialize conversation
-        messages: List[PromptMessage] = [
-            SystemPromptMessage(content=system_prompt),
-            UserPromptMessage(content=params.query)
-        ]
+        # Initialize conversation with history
+        history_prompt_messages = params.model.history_prompt_messages or []
+        messages: List[PromptMessage] = list(history_prompt_messages)
+        messages.insert(0, SystemPromptMessage(content=system_prompt))
+        messages.append(UserPromptMessage(content=params.query))
         
         # Main agent loop
         iteration = 0
