@@ -335,12 +335,11 @@ Always explain your reasoning and provide clear, actionable responses."""
                 # Create model config using model_dump
                 model_config = LLMModelConfig(**params.model.model_dump(mode="json"))
                 
-                llm_response = self.session.model.llm.invoke(
-                    model_config=model_config,
-                    prompt_messages=messages,
-                    tools=prompt_messages_tools,
-                    stream=True
-                )
+                if params.debug_mode:
+                    yield self.create_text_message(
+                        f"🔍 model_config created: {model_config.model}, provider: {model_config.provider}\n"
+                        f"🔍 prompt_messages_tools count: {len(prompt_messages_tools) if prompt_messages_tools else 0}\n"
+                    )
                 
                 llm_response = self.session.model.llm.invoke(
                     model_config=model_config,
