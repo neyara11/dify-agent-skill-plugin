@@ -377,7 +377,7 @@ Always explain your reasoning and provide clear, actionable responses."""
                 llm_response = self.session.model.llm.invoke(
                     model_config=params.model,
                     prompt_messages=messages,
-                    tools=tool_defs if tool_defs else None,
+                    tools=None,
                     stream=True
                 )
                 
