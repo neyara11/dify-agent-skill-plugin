@@ -39,6 +39,7 @@ class ToolDefinitionWrapper:
     
     def model_dump(self, **kwargs) -> Dict[str, Any]:
         func = self._definition.get("function", {})
+        params = func.get("parameters")
         return {
             "Name": func.get("name", ""),
             "Description": func.get("description", ""),
@@ -46,7 +47,7 @@ class ToolDefinitionWrapper:
             "Function": {
                 "Name": func.get("name", ""),
                 "Description": func.get("description", ""),
-                "Parameters": func.get("parameters", {})
+                "Parameters": params if params is not None else {}
             }
         }
 
@@ -149,8 +150,10 @@ Always explain your reasoning and provide clear, actionable responses."""
     def _get_tool_parameters(self, tool) -> Dict[str, Any]:
         """Get tool parameters, handling both ToolEntity objects and dicts."""
         if isinstance(tool, dict):
-            return tool.get("parameters", {})
-        return getattr(tool, 'parameters', None) or {}
+            params = tool.get("parameters")
+            return params if params is not None else {}
+        params = getattr(tool, 'parameters', None)
+        return params if params is not None else {}
 
     def _get_tool_provider(self, tool) -> str:
         """Get tool provider name."""
