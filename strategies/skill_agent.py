@@ -106,6 +106,39 @@ Always explain your reasoning and provide clear, actionable responses."""
         
         return [s.strip() for s in enabled_skills.split(',') if s.strip()]
     
+    def _get_tool_name(self, tool) -> str:
+        """Get tool name, handling both ToolEntity objects and dicts."""
+        if isinstance(tool, dict):
+            return tool.get("identity", {}).get("name", "") or tool.get("name", "")
+        return tool.identity.name if hasattr(tool, 'identity') else ""
+
+    def _get_tool_description(self, tool) -> str:
+        """Get tool description, handling both ToolEntity objects and dicts."""
+        if isinstance(tool, dict):
+            desc = tool.get("description", {})
+            if isinstance(desc, dict):
+                return desc.get("llm", "") or desc.get("description", "")
+            return str(desc)
+        if hasattr(tool, 'description'):
+            if tool.description is None:
+                return ""
+            if hasattr(tool.description, 'llm'):
+                return tool.description.llm
+            return str(tool.description)
+        return ""
+
+    def _get_tool_parameters(self, tool) -> Dict[str, Any]:
+        """Get tool parameters, handling both ToolEntity objects and dicts."""
+        if isinstance(tool, dict):
+            return tool.get("parameters", {})
+        return getattr(tool, 'parameters', None) or {}
+
+    def _get_tool_provider(self, tool) -> str:
+        """Get tool provider name."""
+        if isinstance(tool, dict):
+            return tool.get("identity", {}).get("provider", "") or tool.get("provider", "")
+        return getattr(tool.identity, 'provider', None) if hasattr(tool, 'identity') else ""
+
     def _build_tool_definitions(
         self,
         tools: Optional[List[ToolEntity]]
@@ -114,7 +147,7 @@ Always explain your reasoning and provide clear, actionable responses."""
         Build tool definitions for the LLM.
         
         Args:
-            tools: List of tool entities
+            tools: List of tool entities or dicts
             
         Returns:
             List of tool definition dicts for the LLM
@@ -124,12 +157,16 @@ Always explain your reasoning and provide clear, actionable responses."""
         
         definitions = []
         for tool in tools:
+            name = self._get_tool_name(tool)
+            if not name:
+                continue
+                
             definition = {
                 "type": "function",
                 "function": {
-                    "name": tool.identity.name,
-                    "description": tool.description.llm if tool.description else "",
-                    "parameters": tool.parameters or {}
+                    "name": name,
+                    "description": self._get_tool_description(tool),
+                    "parameters": self._get_tool_parameters(tool)
                 }
             }
             definitions.append(definition)
@@ -253,10 +290,10 @@ Always explain your reasoning and provide clear, actionable responses."""
         # Build tool instances map
         tool_instances = {}
         if params.tools:
-            tool_instances = {
-                tool.identity.name: tool
-                for tool in params.tools
-            }
+            for tool in params.tools:
+                name = self._get_tool_name(tool)
+                if name:
+                    tool_instances[name] = tool
         
         # Build tool definitions for LLM
         tool_defs = self._build_tool_definitions(params.tools)
@@ -365,12 +402,15 @@ Always explain your reasoning and provide clear, actionable responses."""
                         
                         # Invoke the tool
                         tool_result_parts = []
+                        provider = self._get_tool_provider(tool_instance)
+                        tool_name_from_instance = self._get_tool_name(tool_instance)
+                        runtime_params = tool_instance.get("runtime_parameters", {}) if isinstance(tool_instance, dict) else getattr(tool_instance, 'runtime_parameters', None) or {}
                         for result in self.session.tool.invoke(
                             provider_type=ToolProviderType.BUILT_IN,
-                            provider=tool_instance.identity.provider,
-                            tool_name=tool_instance.identity.name,
+                            provider=provider,
+                            tool_name=tool_name_from_instance,
                             parameters={
-                                **tool_instance.runtime_parameters,
+                                **runtime_params,
                                 **tool_args
                             }
                         ):
