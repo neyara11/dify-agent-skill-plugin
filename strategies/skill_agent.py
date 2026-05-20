@@ -40,8 +40,13 @@ class ToolDefinitionWrapper:
     def model_dump(self, **kwargs) -> Dict[str, Any]:
         import json
         func = self._definition.get("function", {})
-        params = func.get("parameters") or {}
-        clean_params = {k: v for k, v in params.items() if v is not None}
+        params = func.get("parameters")
+        if isinstance(params, dict):
+            clean_params = {k: v for k, v in params.items() if v is not None}
+        elif isinstance(params, list):
+            clean_params = {}
+        else:
+            clean_params = {}
         result = {
             "Name": func.get("name", ""),
             "Description": func.get("description", ""),
@@ -52,7 +57,6 @@ class ToolDefinitionWrapper:
                 "Parameters": clean_params
             }
         }
-        print(f"[TOOL DEBUG] model_dump: {json.dumps(result)}")
         return result
 
 
