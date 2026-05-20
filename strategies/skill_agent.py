@@ -143,26 +143,39 @@ Always explain your reasoning and provide clear, actionable responses."""
 
     def _extract_tool_calls(
         self,
-        response: Any
+        chunk: Any
     ) -> List[Tuple[str, str, Dict[str, Any]]]:
         """
-        Extract tool calls from LLM response.
+        Extract tool calls from LLM response chunk.
         
         Args:
-            response: LLM response object
+            chunk: LLMResultChunk
             
         Returns:
             List of (tool_call_id, tool_name, arguments) tuples
         """
         tool_calls = []
         
-        if hasattr(response, 'tool_calls') and response.tool_calls:
-            for tc in response.tool_calls:
-                tool_calls.append((
-                    tc.id or f"call_{len(tool_calls)}",
-                    tc.function.name,
-                    tc.function.arguments or {}
-                ))
+        if not hasattr(chunk, 'delta') or not hasattr(chunk.delta, 'message'):
+            return tool_calls
+        
+        message = chunk.delta.message
+        if not hasattr(message, 'tool_calls') or not message.tool_calls:
+            return tool_calls
+        
+        for tc in message.tool_calls:
+            args = {}
+            if tc.function.arguments:
+                import json
+                try:
+                    args = json.loads(tc.function.arguments)
+                except:
+                    args = {}
+            tool_calls.append((
+                tc.id or f"call_{len(tool_calls)}",
+                tc.function.name,
+                args
+            ))
         
         return tool_calls
     
