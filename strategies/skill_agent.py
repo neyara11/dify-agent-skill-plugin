@@ -379,11 +379,15 @@ Always explain your reasoning and provide clear, actionable responses."""
                     yield self.create_text_message(f"🔍 Total chunks received: {chunk_count}\n")
                 
                 # Finish model log
+                if params.debug_mode:
+                    yield self.create_text_message(f"🔍 tool_calls extracted: {tool_calls}\n")
+                
                 yield self.finish_log_message(
                     log=model_log,
                     data={
                         "response_length": len(response_text),
-                        "has_tool_calls": len(tool_calls) > 0
+                        "has_tool_calls": len(tool_calls) > 0,
+                        "tool_calls": str(tool_calls)[:500] if tool_calls else ""
                     },
                     metadata={
                         "finished_at": time.perf_counter(),
