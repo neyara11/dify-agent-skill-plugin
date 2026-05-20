@@ -296,15 +296,6 @@ Always explain your reasoning and provide clear, actionable responses."""
         tool_instances = {tool.identity.name: tool for tool in tools} if tools else {}
         prompt_messages_tools = self._init_prompt_tools(tools)
         
-        # Debug: show system prompt and model info
-        if params.debug_mode:
-            yield self.create_text_message(
-                f"🔍 System prompt:\n{system_prompt[:500]}...\n\n"
-                f"🔍 Model type: {type(params.model)}, has model_dump: {hasattr(params.model, 'model_dump')}\n"
-                f"🔍 Tools type: {type(params.tools)}, len: {len(params.tools) if params.tools else 0}\n"
-                f"🔍 prompt_messages_tools type: {type(prompt_messages_tools)}, len: {len(prompt_messages_tools) if prompt_messages_tools else 0}\n"
-            )
-        
         # Initialize conversation
         messages: List[PromptMessage] = [
             SystemPromptMessage(content=system_prompt),
@@ -349,12 +340,6 @@ Always explain your reasoning and provide clear, actionable responses."""
                 # Create model config using model_dump
                 model_config = LLMModelConfig(**params.model.model_dump(mode="json"))
                 
-                if params.debug_mode:
-                    yield self.create_text_message(
-                        f"🔍 model_config created: {model_config.model}, provider: {model_config.provider}\n"
-                        f"🔍 prompt_messages_tools count: {len(prompt_messages_tools) if prompt_messages_tools else 0}\n"
-                    )
-                
                 llm_response = self.session.model.llm.invoke(
                     model_config=model_config,
                     prompt_messages=messages,
@@ -362,40 +347,22 @@ Always explain your reasoning and provide clear, actionable responses."""
                     stream=True
                 )
                 
-                if params.debug_mode:
-                    yield self.create_text_message(f"🔍 llm_response type: {type(llm_response)}\n")
-                
-                chunk_count = 0
-                try:
-                    for chunk in llm_response:
-                        chunk_count += 1
-                        if params.debug_mode and chunk_count <= 3:
-                            yield self.create_text_message(f"🔍 Chunk {chunk_count}: {chunk}\n")
+                for chunk in llm_response:
+                    # Handle streaming response
+                    if hasattr(chunk, 'delta') and chunk.delta:
+                        if hasattr(chunk.delta, 'message') and chunk.delta.message:
+                            delta_content = chunk.delta.message.content
+                            if delta_content:
+                                response_text += delta_content
+                                yield self.create_text_message(delta_content)
                         
-                        # Handle streaming response
-                        if hasattr(chunk, 'delta') and chunk.delta:
-                            if hasattr(chunk.delta, 'message') and chunk.delta.message:
-                                delta_content = chunk.delta.message.content
-                                if delta_content:
-                                    response_text += delta_content
-                                    yield self.create_text_message(delta_content)
-                            
                         # Check for tool calls (only if not empty)
                         if hasattr(chunk.delta, 'message') and hasattr(chunk.delta.message, 'tool_calls') and chunk.delta.message.tool_calls:
                             extracted = self._extract_tool_calls(chunk)
                             if extracted:
                                 tool_calls.extend(extracted)
-                except Exception as e:
-                    import traceback
-                    yield self.create_text_message(f"🔍 Error iterating llm_response: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}\n")
-                
-                if params.debug_mode:
-                    yield self.create_text_message(f"🔍 Total chunks received: {chunk_count}\n")
                 
                 # Finish model log
-                if params.debug_mode:
-                    yield self.create_text_message(f"🔍 tool_calls extracted: {tool_calls}\n")
-                
                 yield self.finish_log_message(
                     log=model_log,
                     data={
