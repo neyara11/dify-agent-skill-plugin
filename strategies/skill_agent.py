@@ -32,6 +32,15 @@ from dify_plugin.interfaces.agent import AgentModelConfig, AgentStrategy, ToolEn
 from skills import SkillRegistry
 
 
+class ToolDefinitionWrapper:
+    """Wrapper for tool definition dicts to provide model_dump() method."""
+    def __init__(self, definition: Dict[str, Any]):
+        self._definition = definition
+    
+    def model_dump(self, **kwargs) -> Dict[str, Any]:
+        return self._definition
+
+
 class SkillAgentParams(BaseModel):
     """Parameters for the skill-based agent strategy."""
     model: Dict[str, Any]
@@ -166,6 +175,34 @@ Always explain your reasoning and provide clear, actionable responses."""
         
         return tool_calls
     
+    def _build_tool_definitions(
+        self,
+        tools: Optional[List[Any]]
+    ) -> List[Any]:
+        """Build tool definitions for the LLM."""
+        if not tools:
+            return []
+        
+        definitions = []
+        for tool in tools:
+            name = self._get_tool_name(tool)
+            if not name:
+                continue
+            
+            definition = {
+                "Name": name,
+                "Description": self._get_tool_description(tool),
+                "Type": "function",
+                "Function": {
+                    "Name": name,
+                    "Description": self._get_tool_description(tool),
+                    "Parameters": {}
+                }
+            }
+            definitions.append(ToolDefinitionWrapper(definition))
+        
+        return definitions
+    
     def _invoke(
         self,
         parameters: Dict[str, Any]
@@ -263,6 +300,9 @@ Always explain your reasoning and provide clear, actionable responses."""
                 if name:
                     tool_instances[name] = tool
         
+        # Build tool definitions for LLM
+        tool_defs = self._build_tool_definitions(params.tools)
+        
         # Main agent loop
         iteration = 0
         while iteration < params.maximum_iterations:
@@ -301,7 +341,7 @@ Always explain your reasoning and provide clear, actionable responses."""
                 llm_response = self.session.model.llm.invoke(
                     model_config=params.model,
                     prompt_messages=messages,
-                    tools=None,
+                    tools=tool_defs if tool_defs else None,
                     stream=True
                 )
                 
