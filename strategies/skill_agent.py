@@ -32,34 +32,6 @@ from dify_plugin.interfaces.agent import AgentModelConfig, AgentStrategy, ToolEn
 from skills import SkillRegistry
 
 
-class ToolDefinitionWrapper:
-    """Wrapper for tool definition dicts to provide model_dump() method."""
-    def __init__(self, definition: Dict[str, Any]):
-        self._definition = definition
-    
-    def model_dump(self, **kwargs) -> Dict[str, Any]:
-        import json
-        func = self._definition.get("function", {})
-        params = func.get("parameters")
-        if isinstance(params, dict):
-            clean_params = {k: v for k, v in params.items() if v is not None}
-        elif isinstance(params, list):
-            clean_params = {}
-        else:
-            clean_params = {}
-        result = {
-            "Name": func.get("name", ""),
-            "Description": func.get("description", ""),
-            "Type": self._definition.get("type", "function"),
-            "Function": {
-                "Name": func.get("name", ""),
-                "Description": func.get("description", ""),
-                "Parameters": clean_params
-            }
-        }
-        return result
-
-
 class SkillAgentParams(BaseModel):
     """Parameters for the skill-based agent strategy."""
     model: Dict[str, Any]
@@ -169,40 +141,6 @@ Always explain your reasoning and provide clear, actionable responses."""
             return tool.get("identity", {}).get("provider", "") or tool.get("provider", "")
         return getattr(tool.identity, 'provider', None) if hasattr(tool, 'identity') else ""
 
-    def _build_tool_definitions(
-        self,
-        tools: Optional[List[ToolEntity]]
-    ) -> List[Any]:
-        """
-        Build tool definitions for the LLM.
-        
-        Args:
-            tools: List of tool entities or dicts
-            
-        Returns:
-            List of tool definition wrappers for the LLM
-        """
-        if not tools:
-            return []
-        
-        definitions = []
-        for tool in tools:
-            name = self._get_tool_name(tool)
-            if not name:
-                continue
-                
-            definition = {
-                "type": "function",
-                "function": {
-                    "name": name,
-                    "description": self._get_tool_description(tool),
-                    "parameters": self._get_tool_parameters(tool)
-                }
-            }
-            definitions.append(ToolDefinitionWrapper(definition))
-        
-        return definitions
-    
     def _extract_tool_calls(
         self,
         response: Any
@@ -325,9 +263,6 @@ Always explain your reasoning and provide clear, actionable responses."""
                 if name:
                     tool_instances[name] = tool
         
-        # Build tool definitions for LLM
-        tool_defs = self._build_tool_definitions(params.tools)
-        
         # Main agent loop
         iteration = 0
         while iteration < params.maximum_iterations:
@@ -362,17 +297,6 @@ Always explain your reasoning and provide clear, actionable responses."""
             try:
                 response_text = ""
                 tool_calls = []
-                
-                # Debug: log what we're passing
-                if params.debug_mode:
-                    import json
-                    tool_defs_dump = [td.model_dump() for td in tool_defs] if tool_defs else []
-                    yield self.create_text_message(
-                        f"🔍 LLM invoke debug:\n"
-                        f"  model keys: {list(params.model.keys()) if isinstance(params.model, dict) else 'not a dict'}\n"
-                        f"  tools count: {len(tool_defs) if tool_defs else 0}\n"
-                        f"  tool_defs: {json.dumps(tool_defs_dump, indent=2) if tool_defs else 'none'}\n"
-                    )
                 
                 llm_response = self.session.model.llm.invoke(
                     model_config=params.model,
