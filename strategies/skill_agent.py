@@ -277,6 +277,11 @@ Always explain your reasoning and provide clear, actionable responses."""
         
         system_prompt = "".join(system_parts)
         
+        # Convert tools using _init_prompt_tools (from base AgentStrategy)
+        tools = params.tools
+        tool_instances = {tool.identity.name: tool for tool in tools} if tools else {}
+        prompt_messages_tools = self._init_prompt_tools(tools)
+        
         # Debug: show system prompt and model info
         if params.debug_mode:
             yield self.create_text_message(
@@ -291,11 +296,6 @@ Always explain your reasoning and provide clear, actionable responses."""
             SystemPromptMessage(content=system_prompt),
             UserPromptMessage(content=params.query)
         ]
-        
-        # Convert tools using _init_prompt_tools (from base AgentStrategy)
-        tools = params.tools
-        tool_instances = {tool.identity.name: tool for tool in tools} if tools else {}
-        prompt_messages_tools = self._init_prompt_tools(tools)
         
         # Main agent loop
         iteration = 0
