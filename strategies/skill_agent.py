@@ -36,8 +36,11 @@ class ToolDefinitionWrapper:
     """Wrapper for tool definition dicts to provide model_dump() method."""
     def __init__(self, definition: Dict[str, Any]):
         self._definition = definition
+        self.parameters = definition.get("Function", {}).get("Parameters", {})
     
     def model_dump(self, **kwargs) -> Dict[str, Any]:
+        import sys
+        print(f"[TOOL WRAPPER] model_dump called, returning: {self._definition}", flush=True)
         return self._definition
 
 
