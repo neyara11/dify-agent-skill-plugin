@@ -348,18 +348,33 @@ Always explain your reasoning and provide clear, actionable responses."""
                     stream=True
                 )
                 
-                for chunk in llm_response:
-                    # Handle streaming response
-                    if hasattr(chunk, 'delta') and chunk.delta:
-                        if hasattr(chunk.delta, 'message') and chunk.delta.message:
-                            delta_content = chunk.delta.message.content
-                            if delta_content:
-                                response_text += delta_content
-                                yield self.create_text_message(delta_content)
+                if params.debug_mode:
+                    yield self.create_text_message(f"🔍 llm_response type: {type(llm_response)}\n")
+                
+                chunk_count = 0
+                try:
+                    for chunk in llm_response:
+                        chunk_count += 1
+                        if params.debug_mode and chunk_count <= 3:
+                            yield self.create_text_message(f"🔍 Chunk {chunk_count}: {chunk}\n")
                         
-                        # Check for tool calls
-                        if hasattr(chunk.delta, 'tool_calls'):
-                            tool_calls = self._extract_tool_calls(chunk.delta)
+                        # Handle streaming response
+                        if hasattr(chunk, 'delta') and chunk.delta:
+                            if hasattr(chunk.delta, 'message') and chunk.delta.message:
+                                delta_content = chunk.delta.message.content
+                                if delta_content:
+                                    response_text += delta_content
+                                    yield self.create_text_message(delta_content)
+                            
+                            # Check for tool calls
+                            if hasattr(chunk.delta, 'tool_calls'):
+                                tool_calls = self._extract_tool_calls(chunk.delta)
+                except Exception as e:
+                    import traceback
+                    yield self.create_text_message(f"🔍 Error iterating llm_response: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}\n")
+                
+                if params.debug_mode:
+                    yield self.create_text_message(f"🔍 Total chunks received: {chunk_count}\n")
                 
                 # Finish model log
                 yield self.finish_log_message(
