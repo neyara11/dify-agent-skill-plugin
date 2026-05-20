@@ -333,12 +333,22 @@ Always explain your reasoning and provide clear, actionable responses."""
                 response_text = ""
                 tool_calls = []
                 
-                for chunk in self.session.model.llm.invoke(
+                # Debug: log what we're passing
+                if params.debug_mode:
+                    yield self.create_text_message(
+                        f"🔍 LLM invoke debug:\n"
+                        f"  model keys: {list(params.model.keys()) if isinstance(params.model, dict) else 'not a dict'}\n"
+                        f"  tools count: {len(tool_defs) if tool_defs else 0}\n"
+                    )
+                
+                llm_response = self.session.model.llm.invoke(
                     model_config=params.model,
                     prompt_messages=messages,
                     tools=tool_defs if tool_defs else None,
                     stream=True
-                ):
+                )
+                
+                for chunk in llm_response:
                     # Handle streaming response
                     if hasattr(chunk, 'delta') and chunk.delta:
                         if hasattr(chunk.delta, 'message') and chunk.delta.message:
@@ -458,13 +468,17 @@ Always explain your reasoning and provide clear, actionable responses."""
                 )
                 
             except Exception as e:
+                import traceback
+                error_details = f"{type(e).__name__}: {str(e)}"
+                if params.debug_mode:
+                    error_details += f"\n\nTraceback:\n{traceback.format_exc()}"
                 yield self.finish_log_message(
                     log=model_log,
-                    data={"error": str(e)},
+                    data={"error": error_details},
                     metadata={"finished_at": time.perf_counter()},
                     status=ToolInvokeMessage.LogMessage.LogStatus.ERROR
                 )
-                yield self.create_text_message(f"\n\nError: {str(e)}")
+                yield self.create_text_message(f"\n\nError: {error_details}")
                 break
         
         # Check if we hit iteration limit
