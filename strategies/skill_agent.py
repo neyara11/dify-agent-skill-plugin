@@ -338,6 +338,17 @@ Always explain your reasoning and provide clear, actionable responses."""
                 response_text = ""
                 tool_calls = []
                 
+                # Debug: dump what we're passing
+                if params.debug_mode:
+                    import json
+                    dump = []
+                    for td in tool_defs:
+                        d = td.model_dump()
+                        dump.append(d)
+                    yield self.create_text_message(
+                        f"🔍 Passing to LLM:\n{json.dumps(dump, indent=2)}\n"
+                    )
+                
                 llm_response = self.session.model.llm.invoke(
                     model_config=params.model,
                     prompt_messages=messages,
